@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Reboot01 Profile — Login</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <main class="container">
+    <section class="card">
+      <h1>Sign in</h1>
+      <p class="muted">Use <b>username</b> or <b>email</b> + password.</p>
+
+      <form id="loginForm" class="form">
+        <label>
+          Username or Email
+          <input id="identifier" type="text" autocomplete="username" required />
+        </label>
+
+        <label>
+          Password
+          <input id="password" type="password" autocomplete="current-password" required />
+        </label>
+
+        <button class="btn" type="submit">Login</button>
+        <div id="errorBox" class="error" role="alert" aria-live="polite"></div>
+      </form>
+    </section>
+  </main>
+
+  <script type="module" src="./login.js"></script>
+</body>
+</html>

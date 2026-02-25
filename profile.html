@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Reboot01 Profile — Dashboard</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">Reboot01 Profile</div>
+      <div class="actions">
+        <button id="refreshBtn" class="btn btn-secondary" type="button">Refresh</button>
+        <button id="logoutBtn" class="btn" type="button">Logout</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <div class="grid">
+      <!-- Section 1 -->
+      <section class="card">
+        <h2>Identity</h2>
+        <div class="kv">
+          <div class="k">Login</div><div class="v" id="login">—</div>
+          <div class="k">User ID</div><div class="v" id="uid">—</div>
+        </div>
+      </section>
+
+      <!-- Section 2 -->
+      <section class="card">
+        <h2>Total XP</h2>
+        <div class="big" id="totalXp">—</div>
+        <div class="muted">Sum of all XP transactions.</div>
+      </section>
+
+      <!-- Section 3 -->
+      <section class="card">
+        <h2>Pass / Fail</h2>
+        <div class="kv">
+          <div class="k">PASS</div><div class="v" id="passCount">—</div>
+          <div class="k">FAIL</div><div class="v" id="failCount">—</div>
+          <div class="k">Pass Rate</div><div class="v" id="passRate">—</div>
+        </div>
+      </section>
+
+      <!-- ✅ EXTRA SECTION -->
+      <section class="card">
+        <h2>Top XP Projects</h2>
+        <p class="muted">Highest XP paths from your transactions.</p>
+        <ol class="list" id="topProjectsList"></ol>
+      </section>
+
+      <!-- Graphs section -->
+      <section class="card span2">
+        <h2>Statistics (SVG)</h2>
+
+        <div class="charts">
+          <div class="chart-card">
+            <div class="chart-title">XP over time (cumulative)</div>
+            <svg id="xpChart" width="760" height="260" viewBox="0 0 760 260"></svg>
+          </div>
+
+          <div class="chart-card">
+            <div class="chart-title">PASS vs FAIL</div>
+            <svg id="pfChart" width="360" height="220" viewBox="0 0 360 220"></svg>
+          </div>
+
+          <!-- ✅ EXTRA GRAPH -->
+          <div class="chart-card span2">
+            <div class="chart-title">XP by Project (Top 6)</div>
+            <svg id="xpByPathChart" width="760" height="260" viewBox="0 0 760 260"></svg>
+          </div>
+        </div>
+
+        <div class="muted" id="statusBox"></div>
+      </section>
+    </div>
+  </main>
+
+  <script type="module" src="./profile.js"></script>
+</body>
+</html>
