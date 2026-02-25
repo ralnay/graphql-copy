@@ -17,7 +17,7 @@ const xpByPathChart = document.querySelector("#xpByPathChart");
 const logoutBtn = document.querySelector("#logoutBtn");
 
 function setStatus(msg){ statusBox.textContent = msg || ""; }
-function goLogin(){ window.location.replace("./login.html"); }
+function goLogin(){ window.location.replace("./index.html"); }
 function fmtPct(n){ return Number.isFinite(n) ? `${(n*100).toFixed(1)}%` : "—"; }
 
 logoutBtn.addEventListener("click", () => { clearJwt(); goLogin(); });
