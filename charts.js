@@ -1,76 +1,131 @@
-export function renderXpLine(svgEl, xpAmounts) {
-  const w = 760, h = 260, pad = 32;
-
-  let cum = 0;
-  const series = xpAmounts.map(a => (cum += (Number(a) || 0)));
-  const n = series.length;
+export function renderAuditDonut(svgEl, up, down) {
+  const w = 360, h = 240;
+  const cx = 120, cy = 120;
+  const r = 62;
+  const stroke = 16;
 
   svgEl.innerHTML = "";
-  if (!n) {
-    svgEl.innerHTML = `<text class="label" x="${pad}" y="${pad}">No XP transactions found.</text>`;
+  const total = Math.max(0, up) + Math.max(0, down);
+
+  if (total <= 0) {
+    svgEl.innerHTML = `<text class="label" x="18" y="28">No audit data found (up/down).</text>`;
     return;
   }
 
-  const maxY = Math.max(...series, 1);
+  const ratio = up / total;
+  const C = 2 * Math.PI * r;
 
-  const points = series.map((y, i) => {
-    const x = pad + (n <= 1 ? 0 : (i * (w - 2*pad)) / (n - 1));
-    const yy = (h - pad) - (y * (h - 2*pad)) / maxY;
-    return { x, y: yy };
-  });
+  const upLen = C * ratio;
+  const downLen = C - upLen;
+
+  // rotate start at top
+  const rotate = `rotate(-90 ${cx} ${cy})`;
+
+  svgEl.innerHTML = `
+    <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="${stroke}" />
+
+    <circle class="donut-up"
+      cx="${cx}" cy="${cy}" r="${r}" fill="none"
+      stroke-width="${stroke}" stroke-linecap="round"
+      stroke-dasharray="${upLen} ${downLen}"
+      transform="${rotate}"
+    />
+
+    <circle class="donut-down"
+      cx="${cx}" cy="${cy}" r="${r}" fill="none"
+      stroke-width="${stroke}" stroke-linecap="round"
+      stroke-dasharray="${downLen} ${upLen}"
+      stroke-dashoffset="${-upLen}"
+      transform="${rotate}"
+      opacity="0.95"
+    />
+
+    <text class="label" x="${cx}" y="${cy - 6}" text-anchor="middle" style="font-size:18px; fill: rgba(255,255,255,.86);">
+      ${(ratio * 100).toFixed(1)}%
+    </text>
+    <text class="label" x="${cx}" y="${cy + 14}" text-anchor="middle">
+      audit ratio
+    </text>
+
+    <text class="label" x="220" y="92">Up: ${Number(up).toLocaleString()}</text>
+    <text class="label" x="220" y="118">Down: ${Number(down).toLocaleString()}</text>
+  `;
+}
+
+export function renderActivityBars(svgEl, events, days = 14) {
+  // events: [{ createdAt }]
+  const w = 760, h = 260, pad = 32;
+
+  svgEl.innerHTML = "";
+
+  const now = new Date();
+  const buckets = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(now);
+    d.setDate(now.getDate() - i);
+    d.setHours(0,0,0,0);
+    buckets.push({ date: d, count: 0 });
+  }
+
+  const start = buckets[0].date.getTime();
+  const end = new Date(now).setHours(23,59,59,999);
+
+  for (const e of events) {
+    const t = Date.parse(e.createdAt);
+    if (!Number.isFinite(t)) continue;
+    if (t < start || t > end) continue;
+
+    const d = new Date(t);
+    d.setHours(0,0,0,0);
+    const idx = Math.round((d.getTime() - start) / (24 * 60 * 60 * 1000));
+    if (idx >= 0 && idx < buckets.length) buckets[idx].count++;
+  }
+
+  const max = Math.max(...buckets.map(b => b.count), 1);
+
+  const chartLeft = pad;
+  const chartRight = w - pad;
+  const chartTop = pad;
+  const chartBottom = h - pad;
 
   const grid = [];
   for (let k = 0; k <= 4; k++) {
-    const gy = pad + (k * (h - 2*pad)) / 4;
-    grid.push(`<line class="gridline" x1="${pad}" y1="${gy}" x2="${w-pad}" y2="${gy}" />`);
+    const gy = chartTop + (k * (chartBottom - chartTop)) / 4;
+    grid.push(`<line class="gridline" x1="${chartLeft}" y1="${gy}" x2="${chartRight}" y2="${gy}" />`);
+    const val = Math.round(max * (1 - k/4));
+    grid.push(`<text class="label" x="${chartLeft - 8}" y="${gy + 4}" text-anchor="end">${val}</text>`);
   }
 
-  const poly = points.map(p => `${p.x},${p.y}`).join(" ");
-  const last = series[series.length - 1];
+  const barGap = 6;
+  const barW = (chartRight - chartLeft - barGap * (days - 1)) / days;
+
+  const bars = buckets.map((b, i) => {
+    const bh = ((chartBottom - chartTop) * b.count) / max;
+    const x = chartLeft + i * (barW + barGap);
+    const y = chartBottom - bh;
+    return `<rect class="bar-act" x="${x}" y="${y}" width="${barW}" height="${Math.max(2, bh)}" rx="6" />`;
+  }).join("");
+
+  const labels = buckets.map((b, i) => {
+    if (i === 0 || i === buckets.length - 1 || i === Math.floor(buckets.length/2)) {
+      const x = chartLeft + i * (barW + barGap) + barW/2;
+      const mm = String(b.date.getMonth() + 1).padStart(2, "0");
+      const dd = String(b.date.getDate()).padStart(2, "0");
+      return `<text class="label" x="${x}" y="${h - 8}" text-anchor="middle">${mm}/${dd}</text>`;
+    }
+    return "";
+  }).join("");
 
   svgEl.innerHTML = `
     ${grid.join("")}
-    <line class="axis" x1="${pad}" y1="${h-pad}" x2="${w-pad}" y2="${h-pad}" />
-    <line class="axis" x1="${pad}" y1="${pad}" x2="${pad}" y2="${h-pad}" />
-    <polyline class="line" points="${poly}" />
-    <circle class="dot" cx="${points[points.length-1].x}" cy="${points[points.length-1].y}" r="4" />
-    <text class="label" x="${pad}" y="${pad-10}">Cumulative XP</text>
-    <text class="label" x="${w-pad}" y="${h-10}" text-anchor="end">${n} tx • Last: ${last.toLocaleString()}</text>
+    <line class="axis" x1="${chartLeft}" y1="${chartBottom}" x2="${chartRight}" y2="${chartBottom}" />
+    <line class="axis" x1="${chartLeft}" y1="${chartTop}" x2="${chartLeft}" y2="${chartBottom}" />
+    ${bars}
+    ${labels}
   `;
 }
 
-export function renderPassFailBar(svgEl, passCount, failCount) {
-  const w = 360, h = 220, pad = 28;
-  const max = Math.max(passCount, failCount, 1);
-
-  const barW = 90;
-  const gap = 60;
-
-  const passH = ((h - 2*pad) * passCount) / max;
-  const failH = ((h - 2*pad) * failCount) / max;
-
-  const x1 = pad + 55;
-  const x2 = x1 + barW + gap;
-  const baseY = h - pad;
-
-  svgEl.innerHTML = `
-    <line class="axis" x1="${pad}" y1="${baseY}" x2="${w-pad}" y2="${baseY}" />
-    <line class="axis" x1="${pad}" y1="${pad}" x2="${pad}" y2="${baseY}" />
-
-    <rect class="bar-pass" x="${x1}" y="${baseY - passH}" width="${barW}" height="${passH}" rx="12" />
-    <rect class="bar-fail" x="${x2}" y="${baseY - failH}" width="${barW}" height="${failH}" rx="12" />
-
-    <text class="label" x="${x1 + barW/2}" y="${h-10}" text-anchor="middle">PASS</text>
-    <text class="label" x="${x2 + barW/2}" y="${h-10}" text-anchor="middle">FAIL</text>
-
-    <text class="label" x="${x1 + barW/2}" y="${baseY - passH - 8}" text-anchor="middle">${passCount}</text>
-    <text class="label" x="${x2 + barW/2}" y="${baseY - failH - 8}" text-anchor="middle">${failCount}</text>
-  `;
-}
-
-/* ✅ EXTRA GRAPH: XP by project/path (Top N) */
 export function renderXpByPathBars(svgEl, items) {
-  // items: [{ label, value }]
   const w = 760, h = 260, pad = 32;
   svgEl.innerHTML = "";
 
@@ -83,7 +138,6 @@ export function renderXpByPathBars(svgEl, items) {
   const rowH = Math.floor((h - 2*pad) / items.length);
   const barH = Math.max(14, Math.floor(rowH * 0.55));
 
-  // chart area
   const left = pad;
   const right = w - pad;
   const top = pad;
@@ -96,16 +150,18 @@ export function renderXpByPathBars(svgEl, items) {
     grid.push(`<text class="label" x="${x}" y="${h-10}" text-anchor="middle">${Math.round((k*max)/4).toLocaleString()}</text>`);
   }
 
+  const labelArea = 260;
   const bars = items.map((it, i) => {
     const yMid = top + i * rowH + rowH / 2;
     const y = yMid - barH / 2;
 
-    const barW = ((right - left) * it.value) / max;
-    const label = it.label.length > 36 ? it.label.slice(0, 33) + "…" : it.label;
+    const fullW = (right - left - labelArea);
+    const barW = (fullW * it.value) / max;
+    const label = it.label.length > 38 ? it.label.slice(0, 35) + "…" : it.label;
 
     return `
       <text class="label" x="${left}" y="${yMid + 4}" text-anchor="start">${escapeXml(label)}</text>
-      <rect class="bar-xp" x="${left + 250}" y="${y}" width="${Math.max(2, barW - 250)}" height="${barH}" rx="10" />
+      <rect class="bar-xp" x="${left + labelArea}" y="${y}" width="${Math.max(2, barW)}" height="${barH}" rx="10" />
       <text class="label" x="${right}" y="${yMid + 4}" text-anchor="end">${it.value.toLocaleString()}</text>
     `;
   }).join("");

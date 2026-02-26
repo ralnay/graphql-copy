@@ -1,15 +1,9 @@
 export const AUTH_URL = "https://learn.reboot01.com/api/auth/signin";
 export const GQL_URL  = "https://learn.reboot01.com/api/graphql-engine/v1/graphql";
 
-export function getJwt() {
-  return localStorage.getItem("jwt");
-}
-export function setJwt(jwt) {
-  localStorage.setItem("jwt", jwt);
-}
-export function clearJwt() {
-  localStorage.removeItem("jwt");
-}
+export function getJwt() { return localStorage.getItem("jwt"); }
+export function setJwt(jwt) { localStorage.setItem("jwt", jwt); }
+export function clearJwt() { localStorage.removeItem("jwt"); }
 
 export async function signin(identifier, password) {
   const basic = btoa(`${identifier}:${password}`);
@@ -19,27 +13,20 @@ export async function signin(identifier, password) {
     headers: { Authorization: `Basic ${basic}` },
   });
 
-  if (!res.ok) {
-    throw new Error("Invalid credentials. Use username/email + password.");
-  }
+  if (!res.ok) throw new Error("Invalid credentials. Use username/email + password.");
 
   const raw = (await res.text()).trim();
   const ct = (res.headers.get("content-type") || "").toLowerCase();
-
-  // JWT: three dot-separated base64url chunks
   const jwtRegex = /([A-Za-z0-9\-_]+)\.([A-Za-z0-9\-_]+)\.([A-Za-z0-9\-_]+)/;
 
-  // 1) raw is token (maybe quoted)
   let token = raw.replace(/^"+|"+$/g, "").trim();
   if (jwtRegex.test(token)) return token;
 
-  // 2) "Bearer <jwt>"
   if (token.toLowerCase().startsWith("bearer ")) {
     token = token.slice(7).trim().replace(/^"+|"+$/g, "");
     if (jwtRegex.test(token)) return token;
   }
 
-  // 3) JSON (even if content-type wrong)
   if (raw.startsWith("{") || ct.includes("application/json")) {
     try {
       const data = JSON.parse(raw);
@@ -57,7 +44,6 @@ export async function signin(identifier, password) {
     } catch {}
   }
 
-  // 4) find JWT anywhere in string
   const match = raw.match(jwtRegex);
   if (match) return match[0];
 

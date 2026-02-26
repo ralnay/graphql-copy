@@ -17,10 +17,7 @@ form.addEventListener("submit", async (e) => {
   const identifier = identifierEl.value.trim();
   const password = passwordEl.value;
 
-  if (!identifier || !password) {
-    showError("Please fill both fields.");
-    return;
-  }
+  if (!identifier || !password) return showError("Please fill both fields.");
 
   try {
     const jwt = await signin(identifier, password);

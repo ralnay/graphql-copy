@@ -27,24 +27,27 @@
         </div>
       </section>
 
-      <!-- Section 2 -->
+      <!-- Section 2 (NEW) -->
       <section class="card">
-        <h2>Total XP</h2>
-        <div class="big" id="totalXp">—</div>
-        <div class="muted">Sum of all XP transactions.</div>
-      </section>
-
-      <!-- Section 3 -->
-      <section class="card">
-        <h2>Pass / Fail</h2>
+        <h2>Audit Ratio</h2>
         <div class="kv">
-          <div class="k">PASS</div><div class="v" id="passCount">—</div>
-          <div class="k">FAIL</div><div class="v" id="failCount">—</div>
-          <div class="k">Pass Rate</div><div class="v" id="passRate">—</div>
+          <div class="k">Ratio</div><div class="v" id="auditRatio">—</div>
+          <div class="k">Up</div><div class="v" id="auditUp">—</div>
+          <div class="k">Down</div><div class="v" id="auditDown">—</div>
         </div>
       </section>
 
-      <!-- Extra section -->
+      <!-- Section 3 (NEW) -->
+      <section class="card">
+        <h2>Last Activity</h2>
+        <div class="kv">
+          <div class="k">When</div><div class="v" id="lastWhen">—</div>
+          <div class="k">What</div><div class="v" id="lastWhat">—</div>
+        </div>
+        <div class="muted" id="lastPath">—</div>
+      </section>
+
+      <!-- Extra section (kept as bonus) -->
       <section class="card">
         <h2>Top XP Projects</h2>
         <p class="muted">Highest XP paths from your transactions.</p>
@@ -56,17 +59,19 @@
         <h2>Statistics (SVG)</h2>
 
         <div class="charts">
+          <!-- Graph 1 (NEW) -->
           <div class="chart-card">
-            <div class="chart-title">XP over time (cumulative)</div>
-            <svg id="xpChart" width="760" height="260" viewBox="0 0 760 260"></svg>
+            <div class="chart-title">Audit Ratio (Up vs Down)</div>
+            <svg id="auditChart" width="360" height="240" viewBox="0 0 360 240"></svg>
           </div>
 
+          <!-- Graph 2 (NEW) -->
           <div class="chart-card">
-            <div class="chart-title">PASS vs FAIL</div>
-            <svg id="pfChart" width="360" height="220" viewBox="0 0 360 220"></svg>
+            <div class="chart-title">Activity (Last 14 Days)</div>
+            <svg id="activityChart" width="760" height="260" viewBox="0 0 760 260"></svg>
           </div>
 
-          <!-- Extra graph -->
+          <!-- Bonus graph kept -->
           <div class="chart-card span2">
             <div class="chart-title">XP by Project (Top 6)</div>
             <svg id="xpByPathChart" width="760" height="260" viewBox="0 0 760 260"></svg>
