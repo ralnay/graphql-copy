@@ -41,16 +41,18 @@ export function renderAuditDonut(svgEl, up, down) {
     <text class="label" x="${cx}" y="${cy - 6}" text-anchor="middle" style="font-size:18px; fill: rgba(255,255,255,.86);">
       ${(ratio * 100).toFixed(1)}%
     </text>
-    <text class="label" x="${cx}" y="${cy + 14}" text-anchor="middle">
-      audit ratio
-    </text>
+    <text class="label" x="${cx}" y="${cy + 14}" text-anchor="middle">audit ratio</text>
 
     <text class="label" x="220" y="92">Up: ${Number(up).toLocaleString()}</text>
     <text class="label" x="220" y="118">Down: ${Number(down).toLocaleString()}</text>
   `;
 }
 
-export function renderActivityBars(svgEl, events, days = 14) {
+/**
+ * NEW: daily XP rewards bars (sum of XP amounts per day)
+ * events: [{ createdAt, amount }]
+ */
+export function renderDailyXpBars(svgEl, events, days = 14) {
   const w = 760, h = 260, pad = 32;
   svgEl.innerHTML = "";
 
@@ -60,7 +62,7 @@ export function renderActivityBars(svgEl, events, days = 14) {
     const d = new Date(now);
     d.setDate(now.getDate() - i);
     d.setHours(0,0,0,0);
-    buckets.push({ date: d, count: 0 });
+    buckets.push({ date: d, value: 0 });
   }
 
   const start = buckets[0].date.getTime();
@@ -74,10 +76,12 @@ export function renderActivityBars(svgEl, events, days = 14) {
     const d = new Date(t);
     d.setHours(0,0,0,0);
     const idx = Math.round((d.getTime() - start) / (24 * 60 * 60 * 1000));
-    if (idx >= 0 && idx < buckets.length) buckets[idx].count++;
+    if (idx >= 0 && idx < buckets.length) {
+      buckets[idx].value += (Number(e.amount) || 0);
+    }
   }
 
-  const max = Math.max(...buckets.map(b => b.count), 1);
+  const max = Math.max(...buckets.map(b => b.value), 1);
 
   const chartLeft = pad;
   const chartRight = w - pad;
@@ -96,7 +100,7 @@ export function renderActivityBars(svgEl, events, days = 14) {
   const barW = (chartRight - chartLeft - barGap * (days - 1)) / days;
 
   const bars = buckets.map((b, i) => {
-    const bh = ((chartBottom - chartTop) * b.count) / max;
+    const bh = ((chartBottom - chartTop) * b.value) / max;
     const x = chartLeft + i * (barW + barGap);
     const y = chartBottom - bh;
     return `<rect class="bar-act" x="${x}" y="${y}" width="${barW}" height="${Math.max(2, bh)}" rx="6" />`;
@@ -137,9 +141,8 @@ export function renderXpByPathBars(svgEl, items) {
   const left = pad;
   const right = w - pad;
   const top = pad;
-  const bottom = h - pad;
-
   const labelArea = 260;
+
   const bars = items.map((it, i) => {
     const yMid = top + i * rowH + rowH / 2;
     const y = yMid - barH / 2;
@@ -156,7 +159,7 @@ export function renderXpByPathBars(svgEl, items) {
   }).join("");
 
   svgEl.innerHTML = `
-    <line class="axis" x1="${left}" y1="${bottom}" x2="${right}" y2="${bottom}" />
+    <line class="axis" x1="${left}" y1="${h - pad}" x2="${right}" y2="${h - pad}" />
     ${bars}
   `;
 

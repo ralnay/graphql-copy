@@ -1,5 +1,5 @@
 import { gql, clearJwt, getJwt } from "./api.js";
-import { renderAuditDonut, renderActivityBars, renderXpByPathBars } from "./charts.js";
+import { renderAuditDonut, renderDailyXpBars, renderXpByPathBars } from "./charts.js";
 
 const loginEl = document.querySelector("#login");
 const uidEl = document.querySelector("#uid");
@@ -8,16 +8,17 @@ const auditRatioEl = document.querySelector("#auditRatio");
 const auditUpEl = document.querySelector("#auditUp");
 const auditDownEl = document.querySelector("#auditDown");
 
-const moduleNameEl = document.querySelector("#moduleName");
-const totalXpEl = document.querySelector("#totalXp");
-const currentLevelEl = document.querySelector("#currentLevel");
-const txCountEl = document.querySelector("#txCount");
+const lastContentEl = document.querySelector("#lastContent");
+const lastCompletedAtEl = document.querySelector("#lastCompletedAt");
+const lastGradeEl = document.querySelector("#lastGrade");
+const lastRewardXpEl = document.querySelector("#lastRewardXp");
+const lastPathEl = document.querySelector("#lastPath");
 
 const topProjectsList = document.querySelector("#topProjectsList");
 const statusBox = document.querySelector("#statusBox");
 
 const auditChart = document.querySelector("#auditChart");
-const activityChart = document.querySelector("#activityChart");
+const rewardsChart = document.querySelector("#rewardsChart");
 const xpByPathChart = document.querySelector("#xpByPathChart");
 
 const logoutBtn = document.querySelector("#logoutBtn");
@@ -35,7 +36,7 @@ const Q_ME_NORMAL = `
   }
 `;
 
-/* Arguments query: transactions (xp + up/down for audits) */
+/* Arguments query: xp + up/down */
 const Q_TX_ARGS = `
   query TxArgs {
     transaction(
@@ -52,28 +53,15 @@ const Q_TX_ARGS = `
   }
 `;
 
-/* Nested query (kept for project context and audit requirement) */
+/* Nested query: project/result history (completion source) */
 const Q_RESULTS_NESTED = `
   query ResultsNested {
-    result(order_by: {createdAt: desc}, limit: 50) {
+    result(order_by: {createdAt: desc}, limit: 250) {
       id
       grade
       createdAt
       path
       user { id login }
-    }
-  }
-`;
-
-/* Optional: try to read a level-like field if it exists (safe fallback)
-   If your schema has none of these, it will just show "—". */
-const Q_USER_LEVEL_TRY = `
-  query UserLevelTry {
-    user {
-      level
-      currentLevel
-      lvl
-      attrs
     }
   }
 `;
@@ -90,7 +78,6 @@ async function loadProfile(){
     const txData = await gql(Q_TX_ARGS);
     const tx = txData?.transaction ?? [];
 
-    // Keep nested query usage (requirement)
     const resultsData = await gql(Q_RESULTS_NESTED);
     const results = resultsData?.result ?? [];
 
@@ -105,44 +92,68 @@ async function loadProfile(){
     auditDownEl.textContent = down.toLocaleString();
     renderAuditDonut(auditChart, up, down);
 
-    // ===== XP Board summary =====
+    // ===== Last completed content + rewards received =====
+    // Choose latest "completed" result: grade not null/undefined (you can also require >0 if your school defines completion that way)
+    const completed = results.find(r => r.grade !== null && r.grade !== undefined);
     const xpTx = tx.filter(t => t.type === "xp");
-    const totalXp = xpTx.reduce((s,t)=> s + (Number(t.amount)||0), 0);
-    totalXpEl.textContent = humanizeXp(totalXp);
 
-    txCountEl.textContent = tx.length.toLocaleString();
+    if (completed) {
+      const path = completed.path || "";
+      const contentName = friendlyPath(path);
 
-    // Module = most recent relevant path (prefer xp tx, else result)
-    const lastXp = xpTx.length ? xpTx[xpTx.length - 1] : null; // tx ordered asc
-    const lastRes = results.length ? results[0] : null;       // results ordered desc
+      lastContentEl.textContent = contentName;
+      lastPathEl.textContent = friendlyPathFull(path);
+      lastCompletedAtEl.textContent = fmtDateTime(completed.createdAt);
+      lastGradeEl.textContent = String(completed.grade);
 
-    const lastXpTime = lastXp ? Date.parse(lastXp.createdAt) : -1;
-    const lastResTime = lastRes ? Date.parse(lastRes.createdAt) : -1;
+      // Reward XP: best-effort
+      // 1) Find the closest XP transaction AFTER completion (within 48 hours)
+      // 2) If none, fallback to total XP earned on same path
+      const compTime = Date.parse(completed.createdAt);
+      const windowMs = 48 * 60 * 60 * 1000;
 
-    const modulePath = (lastXpTime >= lastResTime ? lastXp?.path : lastRes?.path) || "";
-    moduleNameEl.textContent = friendlyPath(modulePath);
+      let best = null;
+      let bestDt = Infinity;
 
-    // Current level (best-effort from schema)
-    currentLevelEl.textContent = "—";
-    try {
-      const lv = await gql(Q_USER_LEVEL_TRY);
-      const u = lv?.user?.[0];
-      const found =
-        u?.level ??
-        u?.currentLevel ??
-        u?.lvl ??
-        (typeof u?.attrs === "object" ? (u.attrs.level ?? u.attrs.currentLevel ?? u.attrs.lvl) : null);
-      if (found !== null && found !== undefined && String(found).trim() !== "") {
-        currentLevelEl.textContent = String(found);
+      for (const t of xpTx) {
+        if (t.path !== path) continue;
+        const tt = Date.parse(t.createdAt);
+        if (!Number.isFinite(tt) || !Number.isFinite(compTime)) continue;
+
+        // prefer rewards after completion
+        if (tt >= compTime && tt - compTime <= windowMs) {
+          const dt = tt - compTime;
+          if (dt < bestDt) {
+            bestDt = dt;
+            best = t;
+          }
+        }
       }
-    } catch {
-      // ignore if schema doesn’t have these fields
+
+      if (best) {
+        lastRewardXpEl.textContent = humanizeXp(best.amount);
+      } else {
+        const totalForPath = xpTx
+          .filter(t => t.path === path)
+          .reduce((s,t)=> s + (Number(t.amount)||0), 0);
+        lastRewardXpEl.textContent = totalForPath ? humanizeXp(totalForPath) : "—";
+      }
+    } else {
+      lastContentEl.textContent = "—";
+      lastPathEl.textContent = "—";
+      lastCompletedAtEl.textContent = "—";
+      lastGradeEl.textContent = "—";
+      lastRewardXpEl.textContent = "—";
     }
 
-    // ===== Submission/Transactions history graph (last 14 days) =====
-    renderActivityBars(activityChart, tx.map(t => ({ createdAt: t.createdAt })), 14);
+    // ===== Rewards graph (XP per day, last 14 days) =====
+    renderDailyXpBars(
+      rewardsChart,
+      xpTx.map(t => ({ createdAt: t.createdAt, amount: t.amount })),
+      14
+    );
 
-    // ===== Bonus: XP by project =====
+    // ===== Bonus: Top XP projects + XP by project =====
     const xpByPathMap = new Map();
     for (const t of xpTx) {
       const path = t.path || "(no path)";
@@ -185,8 +196,14 @@ async function loadProfile(){
   }
 }
 
+function fmtDateTime(iso){
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleString();
+}
+
 function humanizeXp(n){
-  // 01 platforms often display XP like “kB”, so we format that way.
+  // matches “605kB” style
   const num = Number(n) || 0;
   const abs = Math.abs(num);
 
@@ -197,13 +214,20 @@ function humanizeXp(n){
 }
 
 function friendlyPath(path){
+  // Short friendly label for UI
   const parts = String(path || "").split("/").filter(Boolean);
   if (!parts.length) return "Unknown";
+  if (parts.length >= 2) parts.shift();      // drop username
+  const keep = parts.slice(-2);              // keep last 2 segments
+  return keep.map(friendlySegment).join(" / ");
+}
 
-  // Drop the first segment if it looks like a username
+function friendlyPathFull(path){
+  // Slightly longer but still human-friendly
+  const parts = String(path || "").split("/").filter(Boolean);
+  if (!parts.length) return "Unknown";
   if (parts.length >= 2) parts.shift();
-
-  const keep = parts.slice(-2);
+  const keep = parts.slice(-3);
   return keep.map(friendlySegment).join(" / ");
 }
 

@@ -3,84 +3,32 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Reboot01 Profile — Dashboard</title>
+  <title>Reboot01 Profile — Login</title>
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
-  <header class="topbar">
-    <div class="topbar-inner">
-      <div class="brand">Reboot01 Profile</div>
-      <div class="actions">
-        <button id="logoutBtn" class="btn" type="button">Logout</button>
-      </div>
-    </div>
-  </header>
-
   <main class="container">
-    <div class="grid">
-      <!-- Section 1 -->
-      <section class="card">
-        <h2>Identity</h2>
-        <div class="kv">
-          <div class="k">Login</div><div class="v" id="login">—</div>
-          <div class="k">User ID</div><div class="v" id="uid">—</div>
-        </div>
-      </section>
+    <section class="card">
+      <h1>Sign in</h1>
+      <p class="muted">Use <b>username</b> or <b>email</b> + password.</p>
 
-      <!-- Section 2 -->
-      <section class="card">
-        <h2>Audit Ratio</h2>
-        <div class="kv">
-          <div class="k">Ratio</div><div class="v" id="auditRatio">—</div>
-          <div class="k">Up</div><div class="v" id="auditUp">—</div>
-          <div class="k">Down</div><div class="v" id="auditDown">—</div>
-        </div>
-      </section>
+      <form id="loginForm" class="form">
+        <label>
+          Username or Email
+          <input id="identifier" type="text" autocomplete="username" required />
+        </label>
 
-      <!-- Section 3 (NEW: XP Board summary) -->
-      <section class="card">
-        <h2>XP Board</h2>
-        <div class="kv">
-          <div class="k">Module</div><div class="v" id="moduleName">—</div>
-          <div class="k">Total XP</div><div class="v" id="totalXp">—</div>
-          <div class="k">Current level</div><div class="v" id="currentLevel">—</div>
-          <div class="k">Transactions</div><div class="v" id="txCount">—</div>
-        </div>
-      </section>
+        <label>
+          Password
+          <input id="password" type="password" autocomplete="current-password" required />
+        </label>
 
-      <!-- Bonus section -->
-      <section class="card">
-        <h2>Top XP Projects</h2>
-        <p class="muted">Highest XP paths from your XP transactions.</p>
-        <ol class="list" id="topProjectsList"></ol>
-      </section>
-
-      <!-- Graphs section -->
-      <section class="card span2">
-        <h2>Statistics (SVG)</h2>
-
-        <div class="charts">
-          <div class="chart-card">
-            <div class="chart-title">Audit Ratio (Up vs Down)</div>
-            <svg id="auditChart" width="360" height="240" viewBox="0 0 360 240"></svg>
-          </div>
-
-          <div class="chart-card">
-            <div class="chart-title">Submissions / Transactions (Last 14 Days)</div>
-            <svg id="activityChart" width="760" height="260" viewBox="0 0 760 260"></svg>
-          </div>
-
-          <div class="chart-card span2">
-            <div class="chart-title">XP by Project (Top 6)</div>
-            <svg id="xpByPathChart" width="760" height="260" viewBox="0 0 760 260"></svg>
-          </div>
-        </div>
-
-        <div class="muted" id="statusBox"></div>
-      </section>
-    </div>
+        <button class="btn" type="submit">Login</button>
+        <div id="errorBox" class="error" role="alert" aria-live="polite"></div>
+      </form>
+    </section>
   </main>
 
-  <script type="module" src="./profile.js"></script>
+  <script type="module" src="./login.js"></script>
 </body>
 </html>
