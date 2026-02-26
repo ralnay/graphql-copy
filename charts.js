@@ -1,5 +1,4 @@
 export function renderAuditDonut(svgEl, up, down) {
-  const w = 360, h = 240;
   const cx = 120, cy = 120;
   const r = 62;
   const stroke = 16;
@@ -18,7 +17,6 @@ export function renderAuditDonut(svgEl, up, down) {
   const upLen = C * ratio;
   const downLen = C - upLen;
 
-  // rotate start at top
   const rotate = `rotate(-90 ${cx} ${cy})`;
 
   svgEl.innerHTML = `
@@ -53,9 +51,7 @@ export function renderAuditDonut(svgEl, up, down) {
 }
 
 export function renderActivityBars(svgEl, events, days = 14) {
-  // events: [{ createdAt }]
   const w = 760, h = 260, pad = 32;
-
   svgEl.innerHTML = "";
 
   const now = new Date();
@@ -143,13 +139,6 @@ export function renderXpByPathBars(svgEl, items) {
   const top = pad;
   const bottom = h - pad;
 
-  const grid = [];
-  for (let k = 0; k <= 4; k++) {
-    const x = left + (k * (right - left)) / 4;
-    grid.push(`<line class="gridline" x1="${x}" y1="${top}" x2="${x}" y2="${bottom}" />`);
-    grid.push(`<text class="label" x="${x}" y="${h-10}" text-anchor="middle">${Math.round((k*max)/4).toLocaleString()}</text>`);
-  }
-
   const labelArea = 260;
   const bars = items.map((it, i) => {
     const yMid = top + i * rowH + rowH / 2;
@@ -167,7 +156,6 @@ export function renderXpByPathBars(svgEl, items) {
   }).join("");
 
   svgEl.innerHTML = `
-    ${grid.join("")}
     <line class="axis" x1="${left}" y1="${bottom}" x2="${right}" y2="${bottom}" />
     ${bars}
   `;

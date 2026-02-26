@@ -8,9 +8,10 @@ const auditRatioEl = document.querySelector("#auditRatio");
 const auditUpEl = document.querySelector("#auditUp");
 const auditDownEl = document.querySelector("#auditDown");
 
-const lastWhenEl = document.querySelector("#lastWhen");
-const lastWhatEl = document.querySelector("#lastWhat");
-const lastPathEl = document.querySelector("#lastPath");
+const moduleNameEl = document.querySelector("#moduleName");
+const totalXpEl = document.querySelector("#totalXp");
+const currentLevelEl = document.querySelector("#currentLevel");
+const txCountEl = document.querySelector("#txCount");
 
 const topProjectsList = document.querySelector("#topProjectsList");
 const statusBox = document.querySelector("#statusBox");
@@ -25,36 +26,22 @@ function setStatus(msg){ statusBox.textContent = msg || ""; }
 function goLogin(){ window.location.replace("index.html"); }
 
 logoutBtn.addEventListener("click", () => { clearJwt(); goLogin(); });
-
 if (!getJwt()) goLogin();
 
-/* Required query styles */
+/* Normal query */
 const Q_ME_NORMAL = `
   query Me {
     user { id login }
   }
 `;
 
-/* Nested query */
-const Q_RESULTS_NESTED = `
-  query ResultsNested {
-    result(order_by: {createdAt: desc}, limit: 250) {
-      id
-      grade
-      createdAt
-      path
-      user { id login }
-    }
-  }
-`;
-
-/* Arguments query: we fetch xp + audit (up/down) transactions */
+/* Arguments query: transactions (xp + up/down for audits) */
 const Q_TX_ARGS = `
   query TxArgs {
     transaction(
       where: { type: { _in: ["xp","up","down"] } }
       order_by: { createdAt: asc }
-      limit: 2000
+      limit: 3000
     ) {
       id
       type
@@ -65,25 +52,49 @@ const Q_TX_ARGS = `
   }
 `;
 
+/* Nested query (kept for project context and audit requirement) */
+const Q_RESULTS_NESTED = `
+  query ResultsNested {
+    result(order_by: {createdAt: desc}, limit: 50) {
+      id
+      grade
+      createdAt
+      path
+      user { id login }
+    }
+  }
+`;
+
+/* Optional: try to read a level-like field if it exists (safe fallback)
+   If your schema has none of these, it will just show "—". */
+const Q_USER_LEVEL_TRY = `
+  query UserLevelTry {
+    user {
+      level
+      currentLevel
+      lvl
+      attrs
+    }
+  }
+`;
+
 async function loadProfile(){
   setStatus("Loading…");
 
   try {
-    // Normal
     const meData = await gql(Q_ME_NORMAL);
     const me = meData?.user?.[0];
     loginEl.textContent = me?.login ?? "Unknown";
     uidEl.textContent = me?.id ?? "—";
 
-    // Arguments (transactions)
     const txData = await gql(Q_TX_ARGS);
     const tx = txData?.transaction ?? [];
 
-    // Nested (results)
+    // Keep nested query usage (requirement)
     const resultsData = await gql(Q_RESULTS_NESTED);
     const results = resultsData?.result ?? [];
 
-    // ===== Audit ratio from up/down =====
+    // ===== Audit ratio =====
     const up = tx.filter(t => t.type === "up").reduce((s,t)=> s + (Number(t.amount)||0), 0);
     const down = tx.filter(t => t.type === "down").reduce((s,t)=> s + (Number(t.amount)||0), 0);
     const denom = up + down;
@@ -92,51 +103,46 @@ async function loadProfile(){
     auditRatioEl.textContent = denom ? `${(ratio*100).toFixed(1)}%` : "—";
     auditUpEl.textContent = up.toLocaleString();
     auditDownEl.textContent = down.toLocaleString();
-
     renderAuditDonut(auditChart, up, down);
 
-    // ===== Last activity: latest among tx + results =====
-    const lastTx = tx.length ? tx[tx.length - 1] : null; // ordered asc
-    const lastRes = results.length ? results[0] : null;  // ordered desc
+    // ===== XP Board summary =====
+    const xpTx = tx.filter(t => t.type === "xp");
+    const totalXp = xpTx.reduce((s,t)=> s + (Number(t.amount)||0), 0);
+    totalXpEl.textContent = humanizeXp(totalXp);
 
-    const lastTxTime = lastTx ? Date.parse(lastTx.createdAt) : -1;
+    txCountEl.textContent = tx.length.toLocaleString();
+
+    // Module = most recent relevant path (prefer xp tx, else result)
+    const lastXp = xpTx.length ? xpTx[xpTx.length - 1] : null; // tx ordered asc
+    const lastRes = results.length ? results[0] : null;       // results ordered desc
+
+    const lastXpTime = lastXp ? Date.parse(lastXp.createdAt) : -1;
     const lastResTime = lastRes ? Date.parse(lastRes.createdAt) : -1;
 
-    let last = null;
+    const modulePath = (lastXpTime >= lastResTime ? lastXp?.path : lastRes?.path) || "";
+    moduleNameEl.textContent = friendlyPath(modulePath);
 
-    if (lastTxTime >= lastResTime) {
-      last = lastTx ? {
-        when: lastTx.createdAt,
-        what: lastTx.type === "xp" ? "XP earned" : (lastTx.type === "up" ? "Audit received (up)" : "Audit received (down)"),
-        path: lastTx.path
-      } : null;
-    } else {
-      last = lastRes ? {
-        when: lastRes.createdAt,
-        what: "Result updated",
-        path: lastRes.path
-      } : null;
+    // Current level (best-effort from schema)
+    currentLevelEl.textContent = "—";
+    try {
+      const lv = await gql(Q_USER_LEVEL_TRY);
+      const u = lv?.user?.[0];
+      const found =
+        u?.level ??
+        u?.currentLevel ??
+        u?.lvl ??
+        (typeof u?.attrs === "object" ? (u.attrs.level ?? u.attrs.currentLevel ?? u.attrs.lvl) : null);
+      if (found !== null && found !== undefined && String(found).trim() !== "") {
+        currentLevelEl.textContent = String(found);
+      }
+    } catch {
+      // ignore if schema doesn’t have these fields
     }
 
-    if (last) {
-      lastWhenEl.textContent = fmtDateTime(last.when);
-      lastWhatEl.textContent = last.what;
-      lastPathEl.textContent = friendlyPath(last.path);
-    } else {
-      lastWhenEl.textContent = "—";
-      lastWhatEl.textContent = "—";
-      lastPathEl.textContent = "—";
-    }
+    // ===== Submission/Transactions history graph (last 14 days) =====
+    renderActivityBars(activityChart, tx.map(t => ({ createdAt: t.createdAt })), 14);
 
-    // ===== Activity graph: last 14 days from tx + results =====
-    const activityEvents = [
-      ...tx.map(t => ({ createdAt: t.createdAt })),
-      ...results.map(r => ({ createdAt: r.createdAt })),
-    ];
-    renderActivityBars(activityChart, activityEvents, 14);
-
-    // ===== Bonus: Top XP projects + XP by project graph =====
-    const xpTx = tx.filter(t => t.type === "xp");
+    // ===== Bonus: XP by project =====
     const xpByPathMap = new Map();
     for (const t of xpTx) {
       const path = t.path || "(no path)";
@@ -152,7 +158,7 @@ async function loadProfile(){
     const top5 = sorted.slice(0, 5);
     for (const it of top5) {
       const li = document.createElement("li");
-      li.innerHTML = `<span>${friendlyPath(it.path)}</span> <small>— ${it.value.toLocaleString()} XP</small>`;
+      li.innerHTML = `<span>${friendlyPath(it.path)}</span> <small>— ${humanizeXp(it.value)}</small>`;
       topProjectsList.appendChild(li);
     }
     if (!top5.length) {
@@ -179,22 +185,25 @@ async function loadProfile(){
   }
 }
 
-function fmtDateTime(iso){
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleString();
+function humanizeXp(n){
+  // 01 platforms often display XP like “kB”, so we format that way.
+  const num = Number(n) || 0;
+  const abs = Math.abs(num);
+
+  if (abs >= 1024 * 1024 * 1024) return `${(num / (1024*1024*1024)).toFixed(1)} GB`;
+  if (abs >= 1024 * 1024) return `${(num / (1024*1024)).toFixed(1)} MB`;
+  if (abs >= 1024) return `${Math.round(num / 1024)} kB`;
+  return `${Math.round(num)} B`;
 }
 
 function friendlyPath(path){
   const parts = String(path || "").split("/").filter(Boolean);
   if (!parts.length) return "Unknown";
 
-  // Drop the first segment if it looks like a username (common on 01 paths)
+  // Drop the first segment if it looks like a username
   if (parts.length >= 2) parts.shift();
 
-  // Keep last 2 segments
   const keep = parts.slice(-2);
-
   return keep.map(friendlySegment).join(" / ");
 }
 
