@@ -10,6 +10,7 @@ const auditDownEl = document.querySelector("#auditDown");
 
 const lastContentEl = document.querySelector("#lastContent");
 const lastCompletedAtEl = document.querySelector("#lastCompletedAt");
+const lastGradeEl = document.querySelector("#lastGrade");
 const lastRewardXpEl = document.querySelector("#lastRewardXp");
 const lastPathEl = document.querySelector("#lastPath");
 
@@ -57,6 +58,7 @@ const Q_RESULTS_NESTED = `
   query ResultsNested {
     result(order_by: {createdAt: desc}, limit: 250) {
       id
+      grade
       createdAt
       path
       user { id login }
@@ -91,6 +93,8 @@ async function loadProfile(){
     renderAuditDonut(auditChart, up, down);
 
     // ===== Last completed content + rewards received =====
+    // Choose latest "completed" result: grade not null/undefined (you can also require >0 if your school defines completion that way)
+    const completed = results.find(r => r.grade !== null && r.grade !== undefined);
     const xpTx = tx.filter(t => t.type === "xp");
 
     if (completed) {
@@ -100,6 +104,7 @@ async function loadProfile(){
       lastContentEl.textContent = contentName;
       lastPathEl.textContent = friendlyPathFull(path);
       lastCompletedAtEl.textContent = fmtDateTime(completed.createdAt);
+      lastGradeEl.textContent = String(completed.grade);
 
       // Reward XP: best-effort
       // 1) Find the closest XP transaction AFTER completion (within 48 hours)
@@ -137,6 +142,7 @@ async function loadProfile(){
       lastContentEl.textContent = "—";
       lastPathEl.textContent = "—";
       lastCompletedAtEl.textContent = "—";
+      lastGradeEl.textContent = "—";
       lastRewardXpEl.textContent = "—";
     }
 
