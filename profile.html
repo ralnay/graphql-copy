@@ -5,6 +5,10 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Reboot01 Profile — Dashboard</title>
   <link rel="stylesheet" href="./styles.css" />
+  <script>
+    // Prevent flashing / weird states
+    if (!localStorage.getItem("jwt")) location.replace("index.html");
+  </script>
 </head>
 <body>
   <header class="topbar">
@@ -18,7 +22,6 @@
 
   <main class="container">
     <div class="grid">
-      <!-- Section 1 -->
       <section class="card">
         <h2>Identity</h2>
         <div class="kv">
@@ -27,7 +30,6 @@
         </div>
       </section>
 
-      <!-- Section 2 -->
       <section class="card">
         <h2>Audit Ratio</h2>
         <div class="kv">
@@ -37,7 +39,6 @@
         </div>
       </section>
 
-      <!-- Section 3 (UPDATED: last completed + rewards) -->
       <section class="card">
         <h2>Last Completed</h2>
         <div class="kv">
@@ -49,14 +50,12 @@
         <div class="muted" id="lastPath">—</div>
       </section>
 
-      <!-- Bonus section -->
       <section class="card">
         <h2>Top XP Projects</h2>
         <p class="muted">Highest XP paths from your XP transactions.</p>
         <ol class="list" id="topProjectsList"></ol>
       </section>
 
-      <!-- Graphs section -->
       <section class="card span2">
         <h2>Statistics (SVG)</h2>
 

@@ -1,4 +1,3 @@
-// charts.js (FULL UPDATED)
 export function renderAuditDonut(svgEl, up, down, ratioNumber = null) {
   const cx = 120, cy = 120;
   const r = 62;
@@ -12,7 +11,7 @@ export function renderAuditDonut(svgEl, up, down, ratioNumber = null) {
     return;
   }
 
-  // Donut split is just visualization (share of total), NOT the ratio
+  // Donut split = share of total (visual only)
   const shareUp = up / total;
   const C = 2 * Math.PI * r;
 

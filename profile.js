@@ -1,4 +1,3 @@
-// profile.js (FULL UPDATED)
 import { gql, clearJwt, getJwt } from "./api.js";
 import { renderAuditDonut, renderDailyXpBars, renderXpByPathBars } from "./charts.js";
 
@@ -30,14 +29,12 @@ function goLogin(){ window.location.replace("index.html"); }
 logoutBtn.addEventListener("click", () => { clearJwt(); goLogin(); });
 if (!getJwt()) goLogin();
 
-/* Normal query */
 const Q_ME_NORMAL = `
   query Me {
     user { id login }
   }
 `;
 
-/* Arguments query: xp + up/down */
 const Q_TX_ARGS = `
   query TxArgs {
     transaction(
@@ -54,7 +51,6 @@ const Q_TX_ARGS = `
   }
 `;
 
-/* Nested query: project/result history (completion source) */
 const Q_RESULTS_NESTED = `
   query ResultsNested {
     result(order_by: {createdAt: desc}, limit: 250) {
@@ -85,31 +81,27 @@ async function loadProfile(){
     // ===== Audit ratio (RAW numbers, not %) =====
     const up = tx.filter(t => t.type === "up").reduce((s,t)=> s + (Number(t.amount)||0), 0);
     const down = tx.filter(t => t.type === "down").reduce((s,t)=> s + (Number(t.amount)||0), 0);
-
-    // Correct audit ratio: up / down
     const ratio = down > 0 ? (up / down) : null;
 
     auditRatioEl.textContent = (ratio === null) ? "—" : ratio.toFixed(1);
     auditUpEl.textContent = up.toLocaleString();
     auditDownEl.textContent = down.toLocaleString();
-
-    // Donut shows up vs down visually; center label shows ratio number
     renderAuditDonut(auditChart, up, down, ratio);
 
-    // ===== Last completed content + rewards received =====
+    // ===== Last completed + reward received =====
     const completed = results.find(r => r.grade !== null && r.grade !== undefined);
     const xpTx = tx.filter(t => t.type === "xp");
 
     if (completed) {
       const path = completed.path || "";
-      const contentName = friendlyPath(path);
 
-      lastContentEl.textContent = contentName;
+      lastContentEl.textContent = friendlyPath(path);
       lastPathEl.textContent = friendlyPathFull(path);
       lastCompletedAtEl.textContent = fmtDateTime(completed.createdAt);
       lastGradeEl.textContent = String(completed.grade);
 
-      // Reward XP: best-effort matching
+      // Reward XP matching (best-effort):
+      // prefer nearest XP tx AFTER completion time on same path, else total XP for that path
       const compTime = Date.parse(completed.createdAt);
       const windowMs = 48 * 60 * 60 * 1000;
 
@@ -123,10 +115,7 @@ async function loadProfile(){
 
         if (tt >= compTime && tt - compTime <= windowMs) {
           const dt = tt - compTime;
-          if (dt < bestDt) {
-            bestDt = dt;
-            best = t;
-          }
+          if (dt < bestDt) { bestDt = dt; best = t; }
         }
       }
 
@@ -146,14 +135,14 @@ async function loadProfile(){
       lastRewardXpEl.textContent = "—";
     }
 
-    // ===== Rewards graph (XP per day, last 14 days) =====
+    // ===== Rewards graph: XP per day last 14 days =====
     renderDailyXpBars(
       rewardsChart,
       xpTx.map(t => ({ createdAt: t.createdAt, amount: t.amount })),
       14
     );
 
-    // ===== Bonus: Top XP projects + XP by project =====
+    // ===== Top XP projects + XP by project =====
     const xpByPathMap = new Map();
     for (const t of xpTx) {
       const path = t.path || "(no path)";
@@ -206,16 +195,14 @@ function friendlyPath(path){
   const parts = String(path || "").split("/").filter(Boolean);
   if (!parts.length) return "Unknown";
   if (parts.length >= 2) parts.shift();
-  const keep = parts.slice(-2);
-  return keep.map(friendlySegment).join(" / ");
+  return parts.slice(-2).map(friendlySegment).join(" / ");
 }
 
 function friendlyPathFull(path){
   const parts = String(path || "").split("/").filter(Boolean);
   if (!parts.length) return "Unknown";
   if (parts.length >= 2) parts.shift();
-  const keep = parts.slice(-3);
-  return keep.map(friendlySegment).join(" / ");
+  return parts.slice(-3).map(friendlySegment).join(" / ");
 }
 
 function friendlySegment(seg){
