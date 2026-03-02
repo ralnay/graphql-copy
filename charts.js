@@ -1,3 +1,4 @@
+// charts.js (FULL UPDATED)
 export function renderAuditDonut(svgEl, up, down, ratioNumber = null) {
   const cx = 120, cy = 120;
   const r = 62;
@@ -59,7 +60,7 @@ export function renderAuditDonut(svgEl, up, down, ratioNumber = null) {
 }
 
 /**
- * NEW: daily XP rewards bars (sum of XP amounts per day)
+ * daily XP rewards bars (sum of XP amounts per day)
  * events: [{ createdAt, amount }]
  */
 export function renderDailyXpBars(svgEl, events, days = 14) {

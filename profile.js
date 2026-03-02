@@ -1,3 +1,4 @@
+// profile.js (FULL UPDATED)
 import { gql, clearJwt, getJwt } from "./api.js";
 import { renderAuditDonut, renderDailyXpBars, renderXpByPathBars } from "./charts.js";
 
@@ -81,23 +82,21 @@ async function loadProfile(){
     const resultsData = await gql(Q_RESULTS_NESTED);
     const results = resultsData?.result ?? [];
 
-    // ===== Audit ratio =====
-    // ===== Audit ratio =====
-const up = tx.filter(t => t.type === "up").reduce((s,t)=> s + (Number(t.amount)||0), 0);
-const down = tx.filter(t => t.type === "down").reduce((s,t)=> s + (Number(t.amount)||0), 0);
+    // ===== Audit ratio (RAW numbers, not %) =====
+    const up = tx.filter(t => t.type === "up").reduce((s,t)=> s + (Number(t.amount)||0), 0);
+    const down = tx.filter(t => t.type === "down").reduce((s,t)=> s + (Number(t.amount)||0), 0);
 
-// Correct audit ratio: up / down
-const ratio = down > 0 ? (up / down) : null;
+    // Correct audit ratio: up / down
+    const ratio = down > 0 ? (up / down) : null;
 
-auditRatioEl.textContent = (ratio === null) ? "—" : ratio.toFixed(1);
-auditUpEl.textContent = up.toLocaleString();
-auditDownEl.textContent = down.toLocaleString();
+    auditRatioEl.textContent = (ratio === null) ? "—" : ratio.toFixed(1);
+    auditUpEl.textContent = up.toLocaleString();
+    auditDownEl.textContent = down.toLocaleString();
 
-// Donut still shows "up vs down" split visually, but center label is the ratio number
-renderAuditDonut(auditChart, up, down, ratio);
+    // Donut shows up vs down visually; center label shows ratio number
+    renderAuditDonut(auditChart, up, down, ratio);
 
     // ===== Last completed content + rewards received =====
-    // Choose latest "completed" result: grade not null/undefined (you can also require >0 if your school defines completion that way)
     const completed = results.find(r => r.grade !== null && r.grade !== undefined);
     const xpTx = tx.filter(t => t.type === "xp");
 
@@ -110,9 +109,7 @@ renderAuditDonut(auditChart, up, down, ratio);
       lastCompletedAtEl.textContent = fmtDateTime(completed.createdAt);
       lastGradeEl.textContent = String(completed.grade);
 
-      // Reward XP: best-effort
-      // 1) Find the closest XP transaction AFTER completion (within 48 hours)
-      // 2) If none, fallback to total XP earned on same path
+      // Reward XP: best-effort matching
       const compTime = Date.parse(completed.createdAt);
       const windowMs = 48 * 60 * 60 * 1000;
 
@@ -124,7 +121,6 @@ renderAuditDonut(auditChart, up, down, ratio);
         const tt = Date.parse(t.createdAt);
         if (!Number.isFinite(tt) || !Number.isFinite(compTime)) continue;
 
-        // prefer rewards after completion
         if (tt >= compTime && tt - compTime <= windowMs) {
           const dt = tt - compTime;
           if (dt < bestDt) {
@@ -135,12 +131,12 @@ renderAuditDonut(auditChart, up, down, ratio);
       }
 
       if (best) {
-        lastRewardXpEl.textContent = humanizeXp(best.amount);
+        lastRewardXpEl.textContent = Number(best.amount || 0).toLocaleString();
       } else {
         const totalForPath = xpTx
           .filter(t => t.path === path)
           .reduce((s,t)=> s + (Number(t.amount)||0), 0);
-        lastRewardXpEl.textContent = totalForPath ? humanizeXp(totalForPath) : "—";
+        lastRewardXpEl.textContent = totalForPath ? totalForPath.toLocaleString() : "—";
       }
     } else {
       lastContentEl.textContent = "—";
@@ -173,7 +169,7 @@ renderAuditDonut(auditChart, up, down, ratio);
     const top5 = sorted.slice(0, 5);
     for (const it of top5) {
       const li = document.createElement("li");
-      li.innerHTML = `<span>${friendlyPath(it.path)}</span> <small>— ${humanizeXp(it.value)}</small>`;
+      li.innerHTML = `<span>${friendlyPath(it.path)}</span> <small>— ${it.value.toLocaleString()}</small>`;
       topProjectsList.appendChild(li);
     }
     if (!top5.length) {
@@ -206,28 +202,15 @@ function fmtDateTime(iso){
   return d.toLocaleString();
 }
 
-function humanizeXp(n){
-  // matches “605kB” style
-  const num = Number(n) || 0;
-  const abs = Math.abs(num);
-
-  if (abs >= 1024 * 1024 * 1024) return `${(num / (1024*1024*1024)).toFixed(1)} GB`;
-  if (abs >= 1024 * 1024) return `${(num / (1024*1024)).toFixed(1)} MB`;
-  if (abs >= 1024) return `${Math.round(num / 1024)} kB`;
-  return `${Math.round(num)} B`;
-}
-
 function friendlyPath(path){
-  // Short friendly label for UI
   const parts = String(path || "").split("/").filter(Boolean);
   if (!parts.length) return "Unknown";
-  if (parts.length >= 2) parts.shift();      // drop username
-  const keep = parts.slice(-2);              // keep last 2 segments
+  if (parts.length >= 2) parts.shift();
+  const keep = parts.slice(-2);
   return keep.map(friendlySegment).join(" / ");
 }
 
 function friendlyPathFull(path){
-  // Slightly longer but still human-friendly
   const parts = String(path || "").split("/").filter(Boolean);
   if (!parts.length) return "Unknown";
   if (parts.length >= 2) parts.shift();
