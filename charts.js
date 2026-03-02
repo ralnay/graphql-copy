@@ -1,26 +1,34 @@
-export function renderAuditDonut(svgEl, up, down) {
+// charts.js
+
+export function renderAuditDonut(svgEl, upBytes, downBytes, ratioText = "—") {
   const cx = 120, cy = 120;
   const r = 62;
   const stroke = 16;
 
   svgEl.innerHTML = "";
-  const total = Math.max(0, up) + Math.max(0, down);
+
+  const up = Math.max(0, Number(upBytes) || 0);
+  const down = Math.max(0, Number(downBytes) || 0);
+  const total = up + down;
 
   if (total <= 0) {
     svgEl.innerHTML = `<text class="label" x="18" y="28">No audit data found (up/down).</text>`;
     return;
   }
 
-  const ratio = up / total;
+  // Donut share uses proportions (up / (up + down))
+  const share = up / total;
   const C = 2 * Math.PI * r;
 
-  const upLen = C * ratio;
+  const upLen = C * share;
   const downLen = C - upLen;
 
+  // Start at top
   const rotate = `rotate(-90 ${cx} ${cy})`;
 
   svgEl.innerHTML = `
-    <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="${stroke}" />
+    <circle cx="${cx}" cy="${cy}" r="${r}" fill="none"
+      stroke="rgba(255,255,255,.08)" stroke-width="${stroke}" />
 
     <circle class="donut-up"
       cx="${cx}" cy="${cy}" r="${r}" fill="none"
@@ -38,18 +46,32 @@ export function renderAuditDonut(svgEl, up, down) {
       opacity="0.95"
     />
 
-    <text class="label" x="${cx}" y="${cy - 6}" text-anchor="middle" style="font-size:18px; fill: rgba(255,255,255,.86);">
-      ${(ratio * 100).toFixed(1)}%
+    <text class="label" x="${cx}" y="${cy - 6}" text-anchor="middle"
+      style="font-size:18px; fill: rgba(255,255,255,.86);">
+      ${escapeXml(ratioText)}
     </text>
-    <text class="label" x="${cx}" y="${cy + 14}" text-anchor="middle">audit ratio</text>
+    <text class="label" x="${cx}" y="${cy + 14}" text-anchor="middle">ratio</text>
 
-    <text class="label" x="220" y="92">Up: ${Number(up).toLocaleString()}</text>
-    <text class="label" x="220" y="118">Down: ${Number(down).toLocaleString()}</text>
+    <text class="label" x="220" y="92">Up: ${formatMB(up)}</text>
+    <text class="label" x="220" y="118">Down: ${formatMB(down)}</text>
   `;
+
+  function formatMB(bytes) {
+    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+  }
+
+  function escapeXml(s) {
+    return String(s)
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&apos;");
+  }
 }
 
 /**
- * NEW: daily XP rewards bars (sum of XP amounts per day)
+ * Daily XP reward bars (sum of XP amounts per day).
  * events: [{ createdAt, amount }]
  */
 export function renderDailyXpBars(svgEl, events, days = 14) {
@@ -61,20 +83,20 @@ export function renderDailyXpBars(svgEl, events, days = 14) {
   for (let i = days - 1; i >= 0; i--) {
     const d = new Date(now);
     d.setDate(now.getDate() - i);
-    d.setHours(0,0,0,0);
+    d.setHours(0, 0, 0, 0);
     buckets.push({ date: d, value: 0 });
   }
 
   const start = buckets[0].date.getTime();
-  const end = new Date(now).setHours(23,59,59,999);
+  const end = new Date(now).setHours(23, 59, 59, 999);
 
-  for (const e of events) {
+  for (const e of events || []) {
     const t = Date.parse(e.createdAt);
     if (!Number.isFinite(t)) continue;
     if (t < start || t > end) continue;
 
     const d = new Date(t);
-    d.setHours(0,0,0,0);
+    d.setHours(0, 0, 0, 0);
     const idx = Math.round((d.getTime() - start) / (24 * 60 * 60 * 1000));
     if (idx >= 0 && idx < buckets.length) {
       buckets[idx].value += (Number(e.amount) || 0);
@@ -92,7 +114,7 @@ export function renderDailyXpBars(svgEl, events, days = 14) {
   for (let k = 0; k <= 4; k++) {
     const gy = chartTop + (k * (chartBottom - chartTop)) / 4;
     grid.push(`<line class="gridline" x1="${chartLeft}" y1="${gy}" x2="${chartRight}" y2="${gy}" />`);
-    const val = Math.round(max * (1 - k/4));
+    const val = Math.round(max * (1 - k / 4));
     grid.push(`<text class="label" x="${chartLeft - 8}" y="${gy + 4}" text-anchor="end">${val}</text>`);
   }
 
@@ -107,8 +129,8 @@ export function renderDailyXpBars(svgEl, events, days = 14) {
   }).join("");
 
   const labels = buckets.map((b, i) => {
-    if (i === 0 || i === buckets.length - 1 || i === Math.floor(buckets.length/2)) {
-      const x = chartLeft + i * (barW + barGap) + barW/2;
+    if (i === 0 || i === buckets.length - 1 || i === Math.floor(buckets.length / 2)) {
+      const x = chartLeft + i * (barW + barGap) + barW / 2;
       const mm = String(b.date.getMonth() + 1).padStart(2, "0");
       const dd = String(b.date.getDate()).padStart(2, "0");
       return `<text class="label" x="${x}" y="${h - 8}" text-anchor="middle">${mm}/${dd}</text>`;
@@ -125,6 +147,10 @@ export function renderDailyXpBars(svgEl, events, days = 14) {
   `;
 }
 
+/**
+ * Horizontal bars: XP by path (Top N).
+ * items: [{ label, value }]
+ */
 export function renderXpByPathBars(svgEl, items) {
   const w = 760, h = 260, pad = 32;
   svgEl.innerHTML = "";
@@ -135,12 +161,14 @@ export function renderXpByPathBars(svgEl, items) {
   }
 
   const max = Math.max(...items.map(x => x.value), 1);
-  const rowH = Math.floor((h - 2*pad) / items.length);
+  const rowH = Math.floor((h - 2 * pad) / items.length);
   const barH = Math.max(14, Math.floor(rowH * 0.55));
 
   const left = pad;
   const right = w - pad;
   const top = pad;
+  const bottom = h - pad;
+
   const labelArea = 260;
 
   const bars = items.map((it, i) => {
@@ -148,22 +176,22 @@ export function renderXpByPathBars(svgEl, items) {
     const y = yMid - barH / 2;
 
     const fullW = (right - left - labelArea);
-    const barW = (fullW * it.value) / max;
-    const label = it.label.length > 38 ? it.label.slice(0, 35) + "…" : it.label;
+    const barW = (fullW * (Number(it.value) || 0)) / max;
+    const label = String(it.label ?? "").length > 38 ? String(it.label).slice(0, 35) + "…" : String(it.label ?? "");
 
     return `
       <text class="label" x="${left}" y="${yMid + 4}" text-anchor="start">${escapeXml(label)}</text>
       <rect class="bar-xp" x="${left + labelArea}" y="${y}" width="${Math.max(2, barW)}" height="${barH}" rx="10" />
-      <text class="label" x="${right}" y="${yMid + 4}" text-anchor="end">${it.value.toLocaleString()}</text>
+      <text class="label" x="${right}" y="${yMid + 4}" text-anchor="end">${Number(it.value || 0).toLocaleString()}</text>
     `;
   }).join("");
 
   svgEl.innerHTML = `
-    <line class="axis" x1="${left}" y1="${h - pad}" x2="${right}" y2="${h - pad}" />
+    <line class="axis" x1="${left}" y1="${bottom}" x2="${right}" y2="${bottom}" />
     ${bars}
   `;
 
-  function escapeXml(s){
+  function escapeXml(s) {
     return String(s)
       .replaceAll("&", "&amp;")
       .replaceAll("<", "&lt;")
