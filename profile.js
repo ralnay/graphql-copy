@@ -90,8 +90,8 @@ const down = tx.filter(t => t.type === "down").reduce((s,t)=> s + (Number(t.amou
 const ratio = down > 0 ? (up / down) : null;
 
 auditRatioEl.textContent = (ratio === null) ? "—" : ratio.toFixed(1);
-auditUpEl.textContent = humanizeXp(up);
-auditDownEl.textContent = humanizeXp(down);
+auditUpEl.textContent = up.toLocaleString();
+auditDownEl.textContent = down.toLocaleString();
 
 // Donut still shows "up vs down" split visually, but center label is the ratio number
 renderAuditDonut(auditChart, up, down, ratio);

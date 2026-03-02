@@ -11,7 +11,7 @@ export function renderAuditDonut(svgEl, up, down, ratioNumber = null) {
     return;
   }
 
-  // Donut split for visualization (share of total), NOT the ratio
+  // Donut split is just visualization (share of total), NOT the ratio
   const shareUp = up / total;
   const C = 2 * Math.PI * r;
 
@@ -53,19 +53,9 @@ export function renderAuditDonut(svgEl, up, down, ratioNumber = null) {
       audit ratio
     </text>
 
-    <text class="label" x="220" y="92">Up: ${formatAmount(up)}</text>
-    <text class="label" x="220" y="118">Down: ${formatAmount(down)}</text>
+    <text class="label" x="220" y="92">Up: ${Number(up).toLocaleString()}</text>
+    <text class="label" x="220" y="118">Down: ${Number(down).toLocaleString()}</text>
   `;
-
-  function formatAmount(n){
-    // small human-readable helper (bytes → kB/MB/GB)
-    const num = Number(n) || 0;
-    const abs = Math.abs(num);
-    if (abs >= 1024 * 1024 * 1024) return `${(num / (1024*1024*1024)).toFixed(2)} GB`;
-    if (abs >= 1024 * 1024) return `${(num / (1024*1024)).toFixed(2)} MB`;
-    if (abs >= 1024) return `${(num / 1024).toFixed(0)} kB`;
-    return `${Math.round(num)} B`;
-  }
 }
 
 /**
