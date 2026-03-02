@@ -81,23 +81,23 @@ async function loadProfile(){
     const resultsData = await gql(Q_RESULTS_NESTED);
     const results = resultsData?.result ?? [];
 
-    // ===== Audit ratio (UPDATED) =====
-    // ratio = up / down (not %)
-    const upBytes = tx.filter(t => t.type === "up").reduce((s,t)=> s + (Number(t.amount)||0), 0);
-    const downBytes = tx.filter(t => t.type === "down").reduce((s,t)=> s + (Number(t.amount)||0), 0);
+    // ===== Audit ratio =====
+    // ===== Audit ratio =====
+const up = tx.filter(t => t.type === "up").reduce((s,t)=> s + (Number(t.amount)||0), 0);
+const down = tx.filter(t => t.type === "down").reduce((s,t)=> s + (Number(t.amount)||0), 0);
 
-    // Display up/down as MB with 2 decimals
-    auditUpEl.textContent = formatMB(upBytes);
-    auditDownEl.textContent = formatMB(downBytes);
+// Correct audit ratio: up / down
+const ratio = down > 0 ? (up / down) : null;
 
-    // Ratio as a number like 0.9, 1.0, 1.2
-    const ratio = downBytes > 0 ? (upBytes / downBytes) : (upBytes > 0 ? Infinity : 0);
-    auditRatioEl.textContent = Number.isFinite(ratio) ? ratio.toFixed(1) : "∞";
+auditRatioEl.textContent = (ratio === null) ? "—" : ratio.toFixed(1);
+auditUpEl.textContent = humanizeXp(up);
+auditDownEl.textContent = humanizeXp(down);
 
-    // Donut visuals still show up vs down proportions, center text shows ratio
-    renderAuditDonut(auditChart, upBytes, downBytes, auditRatioEl.textContent);
+// Donut still shows "up vs down" split visually, but center label is the ratio number
+renderAuditDonut(auditChart, up, down, ratio);
 
     // ===== Last completed content + rewards received =====
+    // Choose latest "completed" result: grade not null/undefined (you can also require >0 if your school defines completion that way)
     const completed = results.find(r => r.grade !== null && r.grade !== undefined);
     const xpTx = tx.filter(t => t.type === "xp");
 
@@ -111,6 +111,8 @@ async function loadProfile(){
       lastGradeEl.textContent = String(completed.grade);
 
       // Reward XP: best-effort
+      // 1) Find the closest XP transaction AFTER completion (within 48 hours)
+      // 2) If none, fallback to total XP earned on same path
       const compTime = Date.parse(completed.createdAt);
       const windowMs = 48 * 60 * 60 * 1000;
 
@@ -122,9 +124,13 @@ async function loadProfile(){
         const tt = Date.parse(t.createdAt);
         if (!Number.isFinite(tt) || !Number.isFinite(compTime)) continue;
 
+        // prefer rewards after completion
         if (tt >= compTime && tt - compTime <= windowMs) {
           const dt = tt - compTime;
-          if (dt < bestDt) { bestDt = dt; best = t; }
+          if (dt < bestDt) {
+            bestDt = dt;
+            best = t;
+          }
         }
       }
 
@@ -200,14 +206,11 @@ function fmtDateTime(iso){
   return d.toLocaleString();
 }
 
-function formatMB(bytes){
-  const mb = (Number(bytes) || 0) / 1_000_000;
-  return `${mb.toFixed(2)} MB`;
-}
-
 function humanizeXp(n){
+  // matches “605kB” style
   const num = Number(n) || 0;
   const abs = Math.abs(num);
+
   if (abs >= 1024 * 1024 * 1024) return `${(num / (1024*1024*1024)).toFixed(1)} GB`;
   if (abs >= 1024 * 1024) return `${(num / (1024*1024)).toFixed(1)} MB`;
   if (abs >= 1024) return `${Math.round(num / 1024)} kB`;
@@ -215,14 +218,16 @@ function humanizeXp(n){
 }
 
 function friendlyPath(path){
+  // Short friendly label for UI
   const parts = String(path || "").split("/").filter(Boolean);
   if (!parts.length) return "Unknown";
-  if (parts.length >= 2) parts.shift();
-  const keep = parts.slice(-2);
+  if (parts.length >= 2) parts.shift();      // drop username
+  const keep = parts.slice(-2);              // keep last 2 segments
   return keep.map(friendlySegment).join(" / ");
 }
 
 function friendlyPathFull(path){
+  // Slightly longer but still human-friendly
   const parts = String(path || "").split("/").filter(Boolean);
   if (!parts.length) return "Unknown";
   if (parts.length >= 2) parts.shift();
