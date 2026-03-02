@@ -52,12 +52,13 @@ export function renderAuditDonut(svgEl, upBytes, downBytes, ratioText = "—") {
     </text>
     <text class="label" x="${cx}" y="${cy + 14}" text-anchor="middle">ratio</text>
 
-    <text class="label" x="220" y="92">Up: ${formatMB(up)}</text>
-    <text class="label" x="220" y="118">Down: ${formatMB(down)}</text>
+    <text class="label" x="220" y="92">Up: ${formatMBDecimal(up)}</text>
+    <text class="label" x="220" y="118">Down: ${formatMBDecimal(down)}</text>
   `;
 
-  function formatMB(bytes) {
-    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+  function formatMBDecimal(bytes) {
+    // Reboot display matches decimal MB (1 MB = 1,000,000 bytes)
+    return `${(bytes / 1_000_000).toFixed(2)} MB`;
   }
 
   function escapeXml(s) {

@@ -201,7 +201,7 @@ function fmtDateTime(iso){
 }
 
 function formatMB(bytes){
-  const mb = (Number(bytes) || 0) / (1024 * 1024);
+  const mb = (Number(bytes) || 0) / 1_000_000;
   return `${mb.toFixed(2)} MB`;
 }
 
